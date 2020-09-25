@@ -155,7 +155,7 @@ int main() {
 		0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 1.0f
 	};
-
+/*
 	//VBO - Vertex buffer object
 	GLuint pos_vbo = 0;
 	glGenBuffers(1, &pos_vbo);
@@ -176,12 +176,27 @@ int main() {
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
 	glEnableVertexAttribArray(0);//pos
-	glEnableVertexAttribArray(1);//colors
+	glEnableVertexAttribArray(1);//colors*/
+
+	VertexBuffer* posVbo = new VertexBuffer();
+	posVbo->LoadData(points, 9);
+	VertexBuffer* color_vbo = new VertexBuffer();
+	color_vbo->LoadData(colors, 9);
+
+	VertexArrayObject* vao = new VertexArrayObject();
+	vao->AddVertexBuffer(posVbo, {
+	{ 0, 3, GL_FLOAT, false, 0, NULL }
+		});
+	vao->AddVertexBuffer(color_vbo, {
+	{ 1, 3, GL_FLOAT, false, 0, NULL }
+		});
 
 	// Load our shaders
 
-	if (!loadShaders())
-		return 1;
+	Shader* shader = new Shader();
+	shader->LoadShaderPartFromFile("shaders/vertex_shader.glsl", GL_VERTEX_SHADER);
+	shader->LoadShaderPartFromFile("shaders/frag_shader.glsl", GL_FRAGMENT_SHADER);
+	shader->Link();
 
 	// GL states
 	glEnable(GL_DEPTH_TEST);
@@ -202,13 +217,16 @@ int main() {
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glUseProgram(shader_program);
-
+		shader->Bind();
+		vao->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		glfwSwapBuffers(window);
 	}
-
+	delete shader;
+	delete vao;
+	delete posVbo;
+	delete color_vbo;
 	// Clean up the toolkit logger so we don't leak memory
 	Logger::Uninitialize();
 	return 0;
