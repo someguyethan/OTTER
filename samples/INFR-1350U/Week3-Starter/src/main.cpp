@@ -65,7 +65,7 @@ bool initGLFW() {
 	}
 
 	//Create a new GLFW window
-	window = glfwCreateWindow(800, 800, "INFR1350U", nullptr, nullptr);
+	window = glfwCreateWindow(800, 800, "Kowalchuk_Ethan_100752686", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
 	// Set our window resized callback    
@@ -155,7 +155,23 @@ int main() {
 		0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 1.0f
 	};
-/*
+	//Interleaving Data
+	static const float interleaved[] = {
+	//    X     Y     Z     R     G     B
+		0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 0.3f, 0.2f, 0.5f,
+		-0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+		0.5f, 1.0f, 0.5f, 1.0f, 1.0f, 1.0f
+	};
+	VertexBuffer* interleaved_vbo = new VertexBuffer();
+	interleaved_vbo->LoadData(interleaved, 6 * 4);
+
+	
+
+	
+
+
+	/*
 	//VBO - Vertex buffer object
 	GLuint pos_vbo = 0;
 	glGenBuffers(1, &pos_vbo);
@@ -176,12 +192,21 @@ int main() {
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
 	glEnableVertexAttribArray(0);//pos
-	glEnableVertexAttribArray(1);//colors*/
+	glEnableVertexAttribArray(1);//colors
+	*/
 
 	VertexBuffer* posVbo = new VertexBuffer();
 	posVbo->LoadData(points, 9);
 	VertexBuffer* color_vbo = new VertexBuffer();
 	color_vbo->LoadData(colors, 9);
+	
+	//Interleaving Data
+	static const uint16_t indices[] = {
+		0, 1, 2,
+		1, 3, 2
+	};
+	IndexBuffer* interleaved_ibo = new IndexBuffer();
+	interleaved_ibo->LoadData(indices, 3 * 2);
 
 	VertexArrayObject* vao = new VertexArrayObject();
 	vao->AddVertexBuffer(posVbo, {
@@ -190,6 +215,14 @@ int main() {
 	vao->AddVertexBuffer(color_vbo, {
 	{ 1, 3, GL_FLOAT, false, 0, NULL }
 		});
+
+	size_t stride = sizeof(float) * 6;
+	VertexArrayObject* vao2 = new VertexArrayObject();
+	vao2->AddVertexBuffer(interleaved_vbo, {
+		BufferAttribute(0, 3, GL_FLOAT, false, stride, 0),
+		BufferAttribute(1, 3, GL_FLOAT, false, stride, sizeof(float) * 3),
+		});
+	vao2->SetIndexBuffer(interleaved_ibo);
 
 	// Load our shaders
 
@@ -220,6 +253,10 @@ int main() {
 		shader->Bind();
 		vao->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		vao2->Bind();
+		glDrawElements(GL_TRIANGLES, interleaved_ibo->GetElementCount(), interleaved_ibo->GetElementType(), nullptr);
+		vao->UnBind();
 
 		glfwSwapBuffers(window);
 	}
