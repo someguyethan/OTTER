@@ -1,3 +1,4 @@
+#pragma region Includes
 #include <Logging.h>
 #include <iostream>
 
@@ -29,6 +30,7 @@
 #include "Utilities/NotObjLoader.h"
 #include "Utilities/ObjLoader.h"
 #include "Utilities/VertexTypes.h"
+#pragma endregion
 
 #define LOG_GL_NOTIFICATIONS
 
@@ -115,16 +117,6 @@ void RenderVAO(
 	vao->Render();
 }
 
-void ManipulateTransformWithInput(const Transform::sptr& transform, float dt) {
-	
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-		transform->MoveLocal(-1.2f * dt, 0.0f, 0.0f);
-	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-		transform->MoveLocal(1.2f * dt, 0.0f, 0.0f);
-	}
-}
-
 struct Material
 {
 	Texture2D::sptr Albedo;
@@ -150,24 +142,28 @@ int AABB(glm::vec3 pos1, glm::vec3 pos2, float width1, float width2, float heigh
 		return 0;
 }
 
-VertexArrayObject::sptr updateText(VertexArrayObject::sptr vao, int text)
+VertexArrayObject::sptr updateText(VertexArrayObject::sptr vao, VertexArrayObject::sptr numbers[], int text)
 {
 	switch (text)
 	{
-	case 0: return vao = ObjLoader::LoadFromFile("models/numbers/0.obj");
-	case 1: return vao = ObjLoader::LoadFromFile("models/numbers/1.obj");
-	case 2: return vao = ObjLoader::LoadFromFile("models/numbers/2.obj");
-	case 3: return vao = ObjLoader::LoadFromFile("models/numbers/3.obj");
-	case 4: return vao = ObjLoader::LoadFromFile("models/numbers/4.obj");
-	case 5: return vao = ObjLoader::LoadFromFile("models/numbers/5.obj");
-	case 6: return vao = ObjLoader::LoadFromFile("models/numbers/6.obj");
-	case 7: return vao = ObjLoader::LoadFromFile("models/numbers/7.obj");
-	case 8: return vao = ObjLoader::LoadFromFile("models/numbers/8.obj");
-	case 9: return vao = ObjLoader::LoadFromFile("models/numbers/9.obj");
+	case 0: return vao = numbers[0];
+	case 1: return vao = numbers[1];
+	case 2: return vao = numbers[2];
+	case 3: return vao = numbers[3];
+	case 4: return vao = numbers[4];
+	case 5: return vao = numbers[5];
+	case 6: return vao = numbers[6];
+	case 7: return vao = numbers[7];
+	case 8: return vao = numbers[8];
+	case 9: return vao = numbers[9];
 	}
 }
 
 int main() {
+
+	//Start//
+
+#pragma region Init_Stuff
 	Logger::Init(); // We'll borrow the logger from the toolkit, but we need to initialize it
 
 	//Initialize GLFW
@@ -185,6 +181,32 @@ int main() {
 	// Enable texturing
 	glEnable(GL_TEXTURE_2D);
 
+	// GL states
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+#pragma endregion
+
+#pragma region Variables
+	//Variables
+	const int rows = 5;
+	const int cols = 10;
+	//Object variables
+	float ballSpeed = 1.2f;
+	float ballSpeedX = ballSpeed;
+	float ballSpeedY = ballSpeed;
+	float brickWidth = 0.3f;
+	float brickHeight = 0.1f;
+	float paddleWidth = 1.0f;
+	float paddleHeight = 0.1f;
+	float paddleSpeed = 1.5f;
+	float ballRadius = 0.1f;
+	int score = 0;
+	int lives = 3;
+	// Our high-precision timer
+	double lastFrame = glfwGetTime();
+#pragma endregion
+
+#pragma region VAOs
 	//VAOs
 	VertexArrayObject::sptr brickVAO = ObjLoader::LoadFromFile("models/cube.obj");
 	VertexArrayObject::sptr ballVAO = ObjLoader::LoadFromFile("models/sphere.obj");
@@ -194,17 +216,31 @@ int main() {
 	VertexArrayObject::sptr livesVAO = ObjLoader::LoadFromFile("models/numbers/3.obj");
 	VertexArrayObject::sptr backgroundVAO = ObjLoader::LoadFromFile("models/plane.obj");
 
-	VertexArrayObject::sptr brickVAOs[25];
+	VertexArrayObject::sptr numbersVAO[10];
+	numbersVAO[0] = ObjLoader::LoadFromFile("models/numbers/0.obj");
+	numbersVAO[1] = ObjLoader::LoadFromFile("models/numbers/1.obj");
+	numbersVAO[2] = ObjLoader::LoadFromFile("models/numbers/2.obj");
+	numbersVAO[3] = ObjLoader::LoadFromFile("models/numbers/3.obj");
+	numbersVAO[4] = ObjLoader::LoadFromFile("models/numbers/4.obj");
+	numbersVAO[5] = ObjLoader::LoadFromFile("models/numbers/5.obj");
+	numbersVAO[6] = ObjLoader::LoadFromFile("models/numbers/6.obj");
+	numbersVAO[7] = ObjLoader::LoadFromFile("models/numbers/7.obj");
+	numbersVAO[8] = ObjLoader::LoadFromFile("models/numbers/8.obj");
+	numbersVAO[9] = ObjLoader::LoadFromFile("models/numbers/9.obj");
+
+	VertexArrayObject::sptr brickVAOs[rows * cols];
 	int counter = 0;
-	for (int x = 0; x < 5; x++)
+	for (int x = 0; x < cols; x++)
 	{
-		for (int y = 0; y < 5; y++)
+		for (int y = 0; y < rows; y++)
 		{
 			brickVAOs[counter] = ObjLoader::LoadFromFile("models/cube.obj");
 			counter++;
 		}
 	}
+#pragma endregion
 
+#pragma region Shaders
 	// Load our shaders
 	Shader::sptr shader = Shader::Create();
 	shader->LoadShaderPartFromFile("shaders/vertex_shader.glsl", GL_VERTEX_SHADER);
@@ -235,13 +271,9 @@ int main() {
 	shader->SetUniform("u_LightAttenuationLinear", lightLinearFalloff);
 	shader->SetUniform("u_LightAttenuationQuadratic", lightQuadraticFalloff);
 	shader->SetUniform("u_TextureMix", textureMix);
+#pragma endregion
 
-	// GL states
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-
-	// NEW STUFF
-
+#pragma region Transforms
 	// Create some transforms and initialize them
 	Transform::sptr brickTransform = Transform::Create();
 	Transform::sptr ballTransform = Transform::Create();
@@ -251,20 +283,23 @@ int main() {
 	Transform::sptr livesTransform = Transform::Create();
 	Transform::sptr backgroundTransform = Transform::Create();
 
-	Transform::sptr brickTransforms[25];
-	for (int i = 0; i < 25; i++)
+	Transform::sptr brickTransforms[rows * cols];
+	for (int i = 0; i < rows * cols; i++)
 		brickTransforms[i] = Transform::Create();
 
 	// We can use operator chaining, since our Set* methods return a pointer to the instance, neat!
-	brickTransform->SetLocalPosition(0.0f, 1.0f, 0.0f)->SetLocalScale(0.2f, 0.1f, 0.1f);
-	ballTransform->SetLocalPosition(-1.0f, -0.5f, 0.0f)->SetLocalScale(0.1f, 0.1f, 0.1f);
-	paddleTransform->SetLocalPosition(-1.0f, -2.0f, 0.0f)->SetLocalScale(0.5f, 0.1f, 0.1f);
+	float xOffset = 1.2f - 0.25 * cols;
+	float yOffset = 0.6f - 0.15 * rows;
+	brickTransform->SetLocalPosition(xOffset, yOffset, 0.0f)->SetLocalScale(0.2f, 0.1f, 0.1f);
+	ballTransform->SetLocalPosition(-1.0f, -1.0f, 0.0f)->SetLocalScale(0.1f, 0.1f, 0.1f);
+	paddleTransform->SetLocalPosition(-1.0f, -2.6f, 0.0f)->SetLocalScale(0.5f, 0.1f, 0.1f);
 	scoreOnesTransform->SetLocalPosition(2.5f, 2.0f, 0.0f)->SetLocalScale(0.5f, 0.5f, 0.5f)->SetLocalRotation(90.0f, 0.0f, 0.0f);
 	scoreTensTransform->SetLocalPosition(2.3f, 2.0f, 0.0f)->SetLocalScale(0.5f, 0.5f, 0.5f)->SetLocalRotation(90.0f, 0.0f, 0.0f);
 	livesTransform->SetLocalPosition(-2.5f, 2.0f, 0.0f)->SetLocalScale(0.5f, 0.5f, 0.5f)->SetLocalRotation(90.0f, 0.0f, 0.0f);
 	backgroundTransform->SetLocalPosition(0.0f, 0.0f, 0.0f)->SetLocalScale(3.0f, 3.0f, 3.0f)->SetLocalRotation(90.0f, 0.0f, 0.0f);
-	
-	// TODO: load textures
+#pragma endregion
+
+#pragma region Textures
 	// Load our texture data from a file
 	Texture2DData::sptr brick1Map = Texture2DData::LoadFromFile("images/brick_texture_1.png");
 	Texture2DData::sptr brick2Map = Texture2DData::LoadFromFile("images/brick_texture_2.png");
@@ -286,8 +321,9 @@ int main() {
 	text->LoadData(textMap);
 	Texture2D::sptr background = Texture2D::Create();
 	background->LoadData(backgroundMap);
-	
+#pragma endregion
 
+#pragma region Materials
 	// TODO: store some info about our materials for each object
 	// We'll use a temporary lil structure to store some info about our material (we'll expand this later)
 	Material brickMat;
@@ -296,15 +332,14 @@ int main() {
 	Material textMat;
 	Material backgroundMat;
 
-	Material brickMats[25];
-	for (int i = 0; i < 25; i++)
+	Material brickMats[rows * cols];
+	for (int i = 0; i < rows * cols; i++)
 	{
 		brickMats[i].Albedo = brick1;
 		brickMats[i].Albedo2 = brick2;
 		brickMats[i].Shininess = 64.0f;
 		brickMats[i].usingSecond = 0.0f;
 	}
-		
 
 	brickMat.Albedo = brick1;
 	brickMat.Albedo2 = brick2;
@@ -330,69 +365,101 @@ int main() {
 	backgroundMat.Albedo2 = background;
 	backgroundMat.Shininess = 64.0f;
 	backgroundMat.usingSecond = 0.0f;
+#pragma endregion
 
+#pragma region Camera
 	camera = Camera::Create();
 	camera->SetPosition(glm::vec3(0, 0, 10)); // Set initial position
 	camera->SetUp(glm::vec3(0, 1, 0)); // Use a z-up coordinate system
 	camera->LookAt(glm::vec3(0.0f)); // Look at center of the screen
 	camera->SetFovDegrees(90.0f); // Set an initial FOV
 	camera->SetOrthoHeight(3.0f);
+	camera->ToggleOrtho();	//Make sure we are ortho
+#pragma endregion
 
-	// We'll use a vector to store all our key press events for now
-	std::vector<KeyPressWatcher> keyToggles;
-	// This is an example of a key press handling helper. Look at InputHelpers.h an .cpp to see
-	// how this is implemented. Note that the ampersand here is capturing the variables within
-	// the scope. If you wanted to do some method on the class, your best bet would be to give it a method and
-	// use std::bind
-	
-	//Make sure we are ortho
-	camera->ToggleOrtho();
-
-	//Object variables
-	float ballSpeedX = 1.0f;
-	float ballSpeedY = 1.0f;
-	float brickWidth = 0.3f;
-	float brickHeight = 0.1f;
-	float paddleWidth = 1.0f;
-	float paddleHeight = 0.1f;
-	float ballRadius = 0.1f;
-	int score = 0;
-	int lives = 3;
-
-	// Our high-precision timer
-	double lastFrame = glfwGetTime();
+	//Update//
 
 	///// Game loop /////
 	while (!glfwWindowShouldClose(window)) {
+
+#pragma region Time_Stuff
 		glfwPollEvents();
+
 		// Calculate the time since our last frame (dt)
 		double thisFrame = glfwGetTime();
 		float dt = static_cast<float>(thisFrame - lastFrame);
+#pragma endregion
 
+#pragma region End_Conditions
 		//Check if game ends
 		if (lives == 0)
 			return 0;
-		else if (score == 25)
+		else if (score == (rows * cols))
 			return 0;
+#pragma endregion
 
+#pragma region Boundaries
 		//Boundaries
 		if (ballTransform->GetLocalPosition().x >= 3.0f)//Right
+		{
 			ballSpeedX = -ballSpeedX;
+			ballTransform->SetLocalPosition(glm::vec3(2.9f,
+													  ballTransform->GetLocalPosition().y,
+													  0.0f));
+		}
 		if (ballTransform->GetLocalPosition().x <= -3.0f)//Left
+		{
 			ballSpeedX = -ballSpeedX;
+			ballTransform->SetLocalPosition(glm::vec3(-2.9f,
+													  ballTransform->GetLocalPosition().y,
+													  0.0f));
+		}
 		if (ballTransform->GetLocalPosition().y >= 3.0f)//Top
+		{
 			ballSpeedY = -ballSpeedY;
+			ballTransform->SetLocalPosition(glm::vec3(ballTransform->GetLocalPosition().x,
+													  2.9f,
+													  0.0f));
+		}
 		if (ballTransform->GetLocalPosition().y <= -3.0f)//Bottom
 		{
 			ballSpeedY = -ballSpeedY;
-			ballTransform->SetLocalPosition(0.0f, 0.0f, 0.0f);
+			ballTransform->SetLocalPosition(-1.0f, -1.0f, 0.0f);
 			lives--;
-			livesVAO = updateText(livesVAO, lives);
+			livesVAO = updateText(livesVAO, numbersVAO,lives);
 		}
+#pragma endregion
+
+#pragma region Ball_Movement
 		//Move ball
 		ballTransform->SetLocalPosition(glm::vec3(ballTransform->GetLocalPosition().x + ballSpeedX * dt,
 												  ballTransform->GetLocalPosition().y + ballSpeedY * dt, 
 												  0.0f));
+#pragma endregion
+
+#pragma region Paddle_Movement
+		//Paddle Movement
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+			paddleTransform->MoveLocal(-paddleSpeed * dt, 0.0f, 0.0f);
+		}
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+			paddleTransform->MoveLocal(paddleSpeed * dt, 0.0f, 0.0f);
+		}
+#pragma endregion
+
+#pragma region Paddle_Boundaries
+		//Make sure paddle doesn't go off screen
+		if (paddleTransform->GetLocalPosition().x > 2.5f)
+			paddleTransform->SetLocalPosition(paddleTransform->GetLocalPosition().x - paddleSpeed * dt,
+				paddleTransform->GetLocalPosition().y,
+				paddleTransform->GetLocalPosition().z);
+		if (paddleTransform->GetLocalPosition().x < -2.5f)
+			paddleTransform->SetLocalPosition(paddleTransform->GetLocalPosition().x + paddleSpeed * dt,
+				paddleTransform->GetLocalPosition().y,
+				paddleTransform->GetLocalPosition().z);
+#pragma endregion
+
+#pragma region Paddle_Collision
 		//Collision for paddle
 		if (AABB(ballTransform->GetLocalPosition(),
 			paddleTransform->GetLocalPosition(),
@@ -406,23 +473,9 @@ int main() {
 		{
 			ballSpeedX = -ballSpeedX;
 		}
+#pragma endregion
 
-		ManipulateTransformWithInput(paddleTransform, dt);
-		
-		//Make sure paddle doesn't go off screen
-		if (paddleTransform->GetLocalPosition().x > 2.5f)
-			paddleTransform->SetLocalPosition(paddleTransform->GetLocalPosition().x - 1.2f * dt,
-											  paddleTransform->GetLocalPosition().y,
-											  paddleTransform->GetLocalPosition().z);
-		if (paddleTransform->GetLocalPosition().x < -2.5f)
-			paddleTransform->SetLocalPosition(paddleTransform->GetLocalPosition().x + 1.2f * dt,
-											  paddleTransform->GetLocalPosition().y,
-											  paddleTransform->GetLocalPosition().z);
-
-		//Set background colour
-		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+#pragma region Shader_Updates
 		shader->Bind();
 		// These are the uniforms that update only once per frame
 		shader->SetUniformMatrix("u_View", camera->GetView());
@@ -431,13 +484,16 @@ int main() {
 		// Tell OpenGL that slot 0 will hold the diffuse, and slot 1 will hold the specular
 		shader->SetUniform("s_Diffuse", 0);
 		shader->SetUniform("s_Diffuse2", 1);
+#pragma endregion
 		
+#pragma region Brick_Stuff
 		//Whole lotta brick stuff
 		int counter = 0;
-		//Nested for loops to create a 5x5 grid of bricks
-		for (int x = 0; x < 5; x++)
+
+		//Nested for loops to create a cols x rows grid of bricks
+		for (int x = 0; x < cols; x++)
 		{
-			for (int y = 0; y < 5; y++)
+			for (int y = 0; y < rows; y++)
 			{
 				//Setting up materials and shader stuff
 				shader->SetUniform("u_usingSecond", brickMats[counter].usingSecond);
@@ -466,8 +522,8 @@ int main() {
 					{
 						brickMats[counter].usingSecond = 3;
 						score++;
-						scoreOnesVAO = updateText(scoreOnesVAO, score % 10);
-						scoreTensVAO = updateText(scoreTensVAO, score/10);
+						scoreOnesVAO = updateText(scoreOnesVAO, numbersVAO, score % 10);
+						scoreTensVAO = updateText(scoreTensVAO, numbersVAO, score/10);
 					}
 				}
 				else if (AABB(ballTransform->GetLocalPosition(),
@@ -484,8 +540,8 @@ int main() {
 					{
 						brickMats[counter].usingSecond = 3;
 						score++;
-						scoreOnesVAO = updateText(scoreOnesVAO, score % 10);
-						scoreTensVAO = updateText(scoreTensVAO, score / 10);
+						scoreOnesVAO = updateText(scoreOnesVAO, numbersVAO, score % 10);
+						scoreTensVAO = updateText(scoreTensVAO, numbersVAO, score / 10);
 					}
 				}
 				//If dead, don't render
@@ -494,6 +550,9 @@ int main() {
 				counter++;
 			}
 		}
+#pragma endregion
+		
+#pragma region Rendering_VAOs
 		//Ball VAO
 		shader->SetUniform("u_usingSecond", ballMat.usingSecond);
 		shader->SetUniform("u_Shininess", ballMat.Shininess);
@@ -526,12 +585,20 @@ int main() {
 		backgroundMat.Albedo2->Bind(1);
 		RenderVAO(shader, backgroundVAO, camera, backgroundTransform);
 		//
+#pragma endregion
 
+#pragma region Update_Cleanup
 		glfwSwapBuffers(window);
 		lastFrame = thisFrame;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#pragma endregion
+
 	}
 
+#pragma region Cleanup
 	// Clean up the toolkit logger so we don't leak memory
 	Logger::Uninitialize();
 	return 0;
+#pragma endregion
+
 }
